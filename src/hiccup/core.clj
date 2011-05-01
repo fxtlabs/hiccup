@@ -305,3 +305,44 @@
   (if (.isAbsolute (URI. uri))
     uri
     (str *base-url* uri)))
+
+
+
+
+(defn- nodalize-attribute [[name value]]
+  (cond
+   (true? value) [(as-str name) (escape-html name)]
+   (not value) nil
+   :else [(as-str name) (escape-html value)]))
+
+(defn- nodalize-attr-map [attrs]
+  (if (nil? attrs)
+    nil
+    (->> attrs seq (map nodalize-attribute) (remove nil?)
+         (apply concat) (apply sorted-map))))
+
+(defmulti render-nodes
+  "Turn a Clojure data type into a seq of XML nodes."
+  {:private false}
+  type)
+
+(defn- nodalize-element
+  "Render an tag vector as an XML node."
+  [element]
+  (let [[tag attrs content] (normalize-element element)]
+    {:tag tag
+     :attrs (nodalize-attr-map attrs)
+     :content (render-nodes content)}))
+
+(defmethod render-nodes IPersistentVector [element]
+  (nodalize-element element))
+
+(defmethod render-nodes ISeq [coll]
+  (map render-nodes coll))
+
+(defmethod render-nodes nil [_]
+  nil)
+
+(defmethod render-nodes :default [x]
+  (str x))
+
